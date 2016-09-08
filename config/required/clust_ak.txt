@@ -1,0 +1,16 @@
+# line-of-sight extinctions to obscurred clusters
+
+NAME	GALL	GALB	    D(kpc)	 dD+	dD-	 Ak	dAk	Ref	
+	
+RSGC1,25.27,-0.157,6.6,0.9,0.9,2.60,0.07,Davies et al. 2008
+RSGC2,26.19,-0.067,5.8,1.8,0.6,1.44,0.05,Davies et al. 2007
+Wd1,-20.5,-0.4,3.9,0.7,0.7,1.13,0.05,Brandner 08, K-D07
+GLIMPSE30,298.756,-0.408,7.2,0.9,0.9,1.12,0.08,Kurtev et al 07
+1900+14,43.021,0.77,12.5,1.7,1.7,1.38,0.06,Davies et al. 2009
+1806-20,9.996,-0.24,8.7,1.8,1.5,3.0,0.3,Bibby et al 08
+Quartet,24.90,0.12,6.1,0.6,0.6,1.6,0.4,Messineo et al 09
+GLIMPSE20,44.16,-0.07,4.5,0.7,0.7,1.2,0.2,Messineo et al 09
+Tr14,287.4,-0.58,2.7,0.3,0.3,0.29,0.05,Ascenso et al. 07; Tapia et al 03
+Wd2,284.27,-0.34,,,,,,
+NGC3603,291.63,-0.53,7.6,0.5,0.5,0.5,0.06,Melena et al. 2008; Harayama et al. 08
+CL1813,12.77,-0.01,4.7,0.4,0.4,0.83,0.2,Messineo et al. 08
