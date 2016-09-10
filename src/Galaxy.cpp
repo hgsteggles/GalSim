@@ -5,6 +5,7 @@
 #include "Timer.hpp"
 #include "ProgressBar.hpp"
 #include "HII.hpp"
+#include "Logger.hpp"
 
 #include <algorithm>
 
@@ -38,15 +39,14 @@ Galaxy::Galaxy(const GalaxyParameters& gal_params) : params(gal_params), thinDis
 
 	Random::randomise();
 
-	std::cout << "================================================================" << std::endl;
 	if (params.densityfile.compare("") != 0)
 		readDensity(params.densityfile);
 	else
 		calcDensity(params.outputDirectory + "density3D.txt");
-	print(params.outputDirectory + "density.txt");
-	print_xz(params.outputDirectory + "density_xz.txt");
+	print_xy(params.outputDirectory + "density-xy.txt");
+	print_xz(params.outputDirectory + "density-xz.txt");
 
-	calcExtinction(params.outputDirectory + "darr.txt");
+	calcExtinction();
 
 	if (params.starpopfile.compare("") != 0) {
 		stars.read(params.starpopfile);
@@ -60,7 +60,6 @@ Galaxy::Galaxy(const GalaxyParameters& gal_params) : params(gal_params), thinDis
 	currStarMass();
 	calcFluxes();
 	stars.printFinal(params.outputDirectory + "starpopfinal.txt");
-	std::cout << "================================================================" << std::endl;
 }
 
 Galaxy::~Galaxy() {
@@ -78,22 +77,25 @@ int Galaxy::kpc2pix(double x, int dim) const {
 }
 
 void Galaxy::readDensity(const std::string& filename) {
-	std::cout << "Setting up galactic density distribution..." << std::endl;
+	Logger::Instance().print<SeverityType::NOTICE>("Setting up galactic density distribution.\n");
 	Timer timer;
 	timer.start();
 
 	std::ifstream file(filename);
 	if (!file)
-		throw std::runtime_error("Galaxy::setupDensity: unable to open \'" + filename + "\' for reading.");
+		throw std::runtime_error("Galaxy::setupDensity: unable to open \'" + filename + "\' for reading.\n");
 
+	thinDisk = std::unique_ptr<ThinDisk>(new ThinDisk(params));
+	thickDisk = std::unique_ptr<ThickDisk>(new ThickDisk(params));
 	spiralArms = std::unique_ptr<SpiralArms>(new SpiralArms(params));
 
-	ProgressBar progBar(nocells[0], 5, "|_ Reading galaxyfile", false);
+	Logger::Instance().print<SeverityType::NOTICE>("Reading galaxyfile...\n");
+	ProgressBar progBar(nocells[0], 1000);
 
 	int n0, n1, n2;
 	file >> n0 >> n1 >> n2;
 	if (n0 != nocells[0] || n1 != nocells[1] || n2 != nocells[2])
-		throw std::runtime_error("Galaxy::readDensity: mismatch between paramfile and densityfile dims.");
+		throw std::runtime_error("Galaxy::readDensity: mismatch between paramfile and densityfile dims.\n");
 	std::string dummy;
 	file >> dummy >> dummy >> dummy >> dummy >> dummy >> dummy >> dummy;
 
@@ -102,24 +104,31 @@ void Galaxy::readDensity(const std::string& filename) {
 			for (int k = 0; k < nocells[2]; k++) {
 				double gx, gy, gz, darms, dthick, dthin, dtot;
 				file >> gx >> gy >> gz >> dthin >> dthick >> darms >> dtot;
-				density[i][j][k] = dtot;
+				thinDisk->density[i][j][k] = dthin;
+				thickDisk->density[i][j][k] = dthick;
 				spiralArms->density[i][j][k] = darms;
+				density[i][j][k] = dtot;
 				if (dtot < 0)
-					throw std::runtime_error("Galaxy::setupDensity: reading negative density.");
+					throw std::runtime_error("Galaxy::setupDensity: reading negative density.\n");
 
 			}
 		}
-		progBar.update(i+1);
+		if (progBar.timeToUpdate()) {
+			progBar.update(i+1);
+			Logger::Instance().print<SeverityType::INFO>(progBar.getFullString(), "\r");
+		}
 	}
-	progBar.end(true);
+
+	progBar.end();
+	Logger::Instance().print<SeverityType::NOTICE>(progBar.getFinalString(), '\n');
 
 	file.close();
 
-	std::cout << "Finished reading density. " << timer.formatTime(timer.getTicks()) << std::endl;
+	Logger::Instance().print<SeverityType::NOTICE>("Finished reading density.\n");
 }
 
 void Galaxy::calcDensity(const std::string& filename) {
-	std::cout << "Setting up galactic density distribution..." << std::endl;
+	Logger::Instance().print<SeverityType::NOTICE>("Setting up galactic density distribution.\n");
 	Timer timer;
 	timer.start();
 
@@ -128,7 +137,8 @@ void Galaxy::calcDensity(const std::string& filename) {
 	thickDisk = std::unique_ptr<ThickDisk>(new ThickDisk(params));
 	thinDisk = std::unique_ptr<ThinDisk>(new ThinDisk(params));
 
-	ProgressBar progBar(nocells[0], 5, "|_ Calculating density", false);
+	Logger::Instance().print<SeverityType::NOTICE>("Calculating density...\n");
+	ProgressBar progBar(nocells[0], 1000);
 
 	for (int i = 0; i < nocells[0]; i++) {
 		for (int j = 0; j < nocells[1]; j++) {
@@ -141,25 +151,32 @@ void Galaxy::calcDensity(const std::string& filename) {
 					density[i][j][k] += thinDisk->density[i][j][k];
 			}
 		}
-		progBar.update(i+1);
+
+		if (progBar.timeToUpdate()) {
+			progBar.update(i+1);
+			Logger::Instance().print<SeverityType::INFO>(progBar.getFullString(), "\r");
+		}
 	}
-	progBar.end(true);
+	progBar.end();
+	Logger::Instance().print<SeverityType::NOTICE>(progBar.getFinalString(), '\n');
 
 	print3D(filename);
 
-	std::cout << "Finished calculating density. " << timer.formatTime(timer.getTicks()) << std::endl;
+	Logger::Instance().print<SeverityType::NOTICE>("Finished calculating density.\n");
 }
 
-void Galaxy::print(const std::string& filename) {
+void Galaxy::print_xy(const std::string& filename) {
 	// creating filename
 	std::ofstream ofile(filename);
 	if (!ofile)
-		throw std::runtime_error("Galaxy::print: unable to open \'" + filename + "\' for outputting.");
+		throw std::runtime_error("Galaxy::print: unable to open \'" + filename + "\' for outputting\n.");
 
 	// writing data to file
-	ProgressBar progBar(density.size()*density[0].size(), 5, "Printing 2D density slice", false);
+	Logger::Instance().print<SeverityType::NOTICE>("Printing 2D (xy) density slice...\n");
+	ProgressBar progBar(density.size() * density[0].size(), 1000);
 
-	ofile << "gal_x\tgal_y\tden_thin_disk\tden_thick_disk\tden_spiral_arms\tden_total\n";
+	ofile << gal_x.size() << '\t' << gal_y.size() << '\n';
+	ofile << "gal_x[kpc]\tgal_y[kpc]\tden_thin_disk[cm-3]\tden_thick_disk[cm-3]\tden_spiral_arms[cm-3]\tden_total[cm-3]\n";
 
 	ofile << std::setprecision(6) << std::fixed;
 	for (unsigned int i = 0; i < density.size(); i++) {
@@ -171,22 +188,28 @@ void Galaxy::print(const std::string& filename) {
 			double thickD = 0;
 			double spiralA = 0;
 
-			if (thinDisk != nullptr)
-				thinD = thinDisk->density[i][j][thinDisk->density[i][j].size()/2];
-			if (thickDisk != nullptr)
-				thickD = thickDisk->density[i][j][thickDisk->density[i][j].size()/2];
-			if (spiralArms != nullptr)
-				spiralA = spiralArms->density[i][j][spiralArms->density[i][j].size()/2];
+			for (unsigned int k = 0; k < density[i][j].size(); k++) {
+				if (thinDisk != nullptr)
+					thinD += thinDisk->density[i][j][k];
+				if (thickDisk != nullptr)
+					thickD += thickDisk->density[i][j][k];
+				if (spiralArms != nullptr)
+					spiralA += spiralArms->density[i][j][k];
+			}
 
 			ofile << thinD << '\t';
 			ofile << thickD << '\t';
 			ofile << spiralA << '\t';
 			ofile << density[i][j][density[i][j].size()/2] << std::endl;
 
-			progBar.update((i+1)*(j+1));
+			if (progBar.timeToUpdate()) {
+				progBar.update((i+1)*(j+1));
+				Logger::Instance().print<SeverityType::INFO>(progBar.getFullString(), "\r");
+			}
 		}
 	}
-	progBar.end(true);
+	progBar.end();
+	Logger::Instance().print<SeverityType::NOTICE>(progBar.getFinalString(), '\n');
 
 	ofile.close();
 }
@@ -195,12 +218,14 @@ void Galaxy::print_xz(const std::string& filename) {
 	// creating filename
 	std::ofstream ofile(filename);
 	if (!ofile)
-		throw std::runtime_error("Galaxy::print: unable to open \'" + filename + "\' for outputting.");
+		throw std::runtime_error("Galaxy::print: unable to open \'" + filename + "\' for outputting.\n");
 
 	// writing data to file
-	ProgressBar progBar(density.size()*density[0].size(), 5, "Printing 2D density slice", false);
+	Logger::Instance().print<SeverityType::NOTICE>("Printing 2D (xz) density slice...\n");
+	ProgressBar progBar(density.size() * density[0].size(), 1000);
 
-	ofile << "gal_x\tgal_z\tden_thin_disk\tden_thick_disk\tden_spiral_arms\tden_total\n";
+	ofile << gal_x.size() << '\t' << gal_z.size() << '\n';
+	ofile << "gal_x[kpc]\tgal_z[kpc]\tden_thin_disk[cm-3]\tden_thick_disk[cm-3]\tden_spiral_arms[cm-3]\tden_total[cm-3]\n";
 
 	ofile << std::setprecision(6) << std::fixed;
 	for (unsigned int i = 0; i < density.size(); i++) {
@@ -229,10 +254,14 @@ void Galaxy::print_xz(const std::string& filename) {
 			ofile << spiralA << '\t';
 			ofile << total << std::endl;
 
-			progBar.update((i+1)*(k+1));
+			if (progBar.timeToUpdate()) {
+				progBar.update((i+1)*(k+1));
+				Logger::Instance().print<SeverityType::INFO>(progBar.getFullString(), "\r");
+			}
 		}
 	}
-	progBar.end(true);
+	progBar.end();
+	Logger::Instance().print<SeverityType::NOTICE>(progBar.getFinalString(), '\n');
 
 	ofile.close();
 }
@@ -240,14 +269,14 @@ void Galaxy::print_xz(const std::string& filename) {
 void Galaxy::print3D(const std::string& filename) {
 	std::ofstream ofile(filename);
 	if (!ofile)
-		throw std::runtime_error("Galaxy::print3D: unable to open \'" + filename + "\' for outputting.");
+		throw std::runtime_error("Galaxy::print3D: unable to open \'" + filename + "\' for outputting.\n");
 
 	// writing data to file
-	int ndata = density.size() * density[0].size() * density[0][0].size();
-	ProgressBar progBar(ndata, 5, "Printing 3D density data", false);
+	Logger::Instance().print<SeverityType::NOTICE>("Printing 3D density data...\n");
+	ProgressBar progBar(density.size(), 1000);
 
 	ofile << gal_x.size() << '\t' << gal_y.size() << '\t' << gal_z.size() << '\n';
-	ofile << "gal_x\tgal_y\tgal_z\tden_thin_disk\tden_thick_disk\tden_spiral_arms\tden_total\n";
+	ofile << "gal_x[kpc]\tgal_y[kpc]\tgal_z[kpc]\tden_thin_disk[cm-3]\tden_thick_disk[cm-3]\tden_spiral_arms[cm-3]\tden_total[cm-3]\n";
 	ofile << std::setprecision(9) << std::fixed;
 
 	for (unsigned int i = 0; i < density.size(); i++) {
@@ -270,16 +299,22 @@ void Galaxy::print3D(const std::string& filename) {
 					ofile << 0 << '\t';
 				ofile << density[i][j][k] << std::endl;
 
-				progBar.update((i+1)*(j+1)*(k+1));
+				if (progBar.timeToUpdate()) {
+					progBar.update(i + 1);
+					Logger::Instance().print<SeverityType::INFO>(progBar.getFullString(), "\r");
+				}
 			}
 		}
 	}
-	progBar.end(true);
+
+	progBar.end();
+	Logger::Instance().print<SeverityType::NOTICE>(progBar.getFinalString(), '\n');
+
 	ofile.close();
 }
 
-void Galaxy::calcExtinction(const std::string & filename) {
-	std::cout << "Calculating extinction parameters from cepheids..." << std::endl;
+void Galaxy::calcExtinction() {
+	Logger::Instance().print<SeverityType::NOTICE>("Calculating extinction parameters from cepheids...\n");
 
 	Timer timer;
 	timer.start();
@@ -293,11 +328,13 @@ void Galaxy::calcExtinction(const std::string & filename) {
 
 	//** CLUSTERS **//
 	readcols("config/required/clust_ak.txt", ",", clust_id, clust_L, clust_B, clust_r[0], clust_r[1], clust_r[2], clustAk[0], clustAk[1], ref);
+
 	int nclust = clust_r[0].size();
 	for (int iclust = 0; iclust < nclust; iclust++) {
 		clust_r[1][iclust] = clust_r[0][iclust]+clust_r[1][iclust];
 		clust_r[2][iclust] = clust_r[0][iclust]-clust_r[2][iclust];
 	}
+
 	// Calculate x,y,z coords & errors of clusters from r, r+dr, r-dr, l, l+dl, l-dl, b, b+db, b-db
 	std::vector<std::vector<double> > cl_x(3, std::vector<double>(nclust, 0));
 	std::vector<std::vector<double> > cl_y(3, std::vector<double>(nclust, 0));
@@ -312,7 +349,8 @@ void Galaxy::calcExtinction(const std::string & filename) {
 
 	std::vector<std::vector<double> > clustColDens(3, std::vector<double>(nclust, 0.0));
 
-	ProgressBar progBar(nclust, 5, "|_ Calculating cluster column densities", false);
+	Logger::Instance().print<SeverityType::NOTICE>("Calculating cluster column densities...\n");
+	ProgressBar progBar(nclust, 1000);
 
 	// Calculate cluster column densities.
 	for (int iclust = 0; iclust < nclust; iclust++) {
@@ -333,9 +371,14 @@ void Galaxy::calcExtinction(const std::string & filename) {
 		clustColDens[1][iclust] = std::max(clustColDens[1][iclust], clustColDens[2][iclust]) - clustColDens[0][iclust];
 		clustColDens[2][iclust] = clustColDens[0][iclust] - std::min(clustColDens[1][iclust], clustColDens[2][iclust]);
 
-		progBar.update(iclust+1);
+		if (progBar.timeToUpdate()) {
+			progBar.update(iclust + 1);
+			Logger::Instance().print<SeverityType::INFO>(progBar.getFullString(), "\r");
+		}
 	}
-	progBar.end(true);
+
+	progBar.end();
+	Logger::Instance().print<SeverityType::NOTICE>(progBar.getFinalString(), '\n');
 
 	//** CEPHEIDS **//
 	readcols("config/required/cepheids.csv", ",", id1, starn, per, vint, bvint, ebv, vamp, mv, dist);
@@ -352,7 +395,7 @@ void Galaxy::calcExtinction(const std::string & filename) {
 		if (coord.size() > 0) {
 			ceph_l.push_back(cl[iceph]);
 			ceph_b.push_back(cb[iceph]);
-			ceph_r.push_back(dist[coord[0]]/1000.0);
+			ceph_r.push_back(dist[coord[0]] / 1000.0);
 			ceph_bv.push_back(ebv[coord[0]]);
 			ceph_id.push_back(id2[iceph]);
 		}
@@ -369,7 +412,9 @@ void Galaxy::calcExtinction(const std::string & filename) {
 		ceph_z[i] = ceph_r[i] * std::sin(ceph_b[i] * CST::DEG2RAD);
 	}
 
-	progBar.reset(100, 5, "|_ Calculate cepheid column densities");
+	Logger::Instance().print<SeverityType::NOTICE>("Calculating cepheid column densities...\n");
+	progBar = ProgressBar(100, 1000);
+
 	// Calculate cepheid column densities.
 	std::vector<double> cephColDens(nceph, 0.0);
 
@@ -385,32 +430,36 @@ void Galaxy::calcExtinction(const std::string & filename) {
 		std::vector<double> interpolatedDensities = cubeInterpol(density, xsamp_px, ysamp_px, zsamp_px);
 		std::vector<double> distances(nsamp, 0.0);
 		for (int isamp = 0; isamp < nsamp; isamp++)
-			distances[isamp] = isamp*ceph_r[iceph] / (double)(nsamp);
+			distances[isamp] = isamp * ceph_r[iceph] / (double)(nsamp);
 		cephColDens[iceph] = int_tabulated(distances, interpolatedDensities);
 
-		progBar.update(100.0 * iceph / (double)(nceph));
+		if (progBar.timeToUpdate()) {
+			progBar.update(100.0 * iceph / (double)(nceph));
+			Logger::Instance().print<SeverityType::INFO>(progBar.getFullString(), "\r");
+		}
 	}
-	progBar.end(true);
 
-	printScatter(clustColDens[0], clustColDens[2], filename);
+	progBar.end();
+	Logger::Instance().print<SeverityType::NOTICE>(progBar.getFinalString(), '\n');
+
 	std::vector<double> fitx = clustColDens[0];
 	std::vector<double> fity = clustAk[0];
 	std::vector<double> xsig = clustColDens[2];
 	std::vector<double> ysig = clustAk[1];
 	fitx.push_back(vmean(cephColDens));
-	fity.push_back(vmean(ceph_bv)*3.1*0.112);
+	fity.push_back(vmean(ceph_bv) * 3.1 * 0.112);
 	xsig.push_back(vstddev(cephColDens));
-	ysig.push_back(vstddev(ceph_bv)*3.1*0.112);
+	ysig.push_back(vstddev(ceph_bv) * 3.1 * 0.112);
 	double asig, bsig;
 
 	Recipes::fitexy(fitx, fity, xsig, ysig, extinction_a, extinction_b, asig, bsig);
-	std::cout << "|_ extpar_a = " << extinction_a << '\t' << "extpar_b = " << extinction_b << std::endl;
+	Logger::Instance().print<SeverityType::NOTICE>("extpar_a = ", extinction_a, '\t', "extpar_b = ", extinction_b, '\n');
 
-	std::cout << "Finished calculating extinction parameters. " << timer.formatTime(timer.getTicks()) << std::endl;
+	Logger::Instance().print<SeverityType::NOTICE>("Finished calculating extinction parameters. ", timer.formatTime(timer.getTicks()), '\n');
 }
 
 void Galaxy::populate() {
-	std::cout << "Generating stars..." << std::endl;
+	Logger::Instance().print<SeverityType::NOTICE>("Generating stars.\n");
 
 	Timer timer;
 	timer.start();
@@ -422,17 +471,19 @@ void Galaxy::populate() {
 	double total_stellar_mass = sfr_gal*total_time;
 	/* Generating Stellar Populations */
 	/* Single Star Mode */
-	std::cout << "|_ Generating stellar pops in single star mode..." << std::endl;
-	std::cout << "|_ Total stellar mass in = " << total_stellar_mass << std::endl;
-	ProgressBar progBar(total_stellar_mass, 5, "|_ Calculating star masses & ages", false);
+	Logger::Instance().print<SeverityType::NOTICE>(
+		"Generating stellar pops in single star mode...");
+	Logger::Instance().print<SeverityType::NOTICE>("Total stellar mass in = ",
+		total_stellar_mass, '\n');
+
+	Logger::Instance().print<SeverityType::NOTICE>("Calc. star masses & ages...\n");
+	ProgressBar progBar(total_stellar_mass, 1000);
 
 	KroupaIMF kroupa;
 
 	double sum = 0;
-	for (int istar = 0, i = 0; i < (int)(total_stellar_mass*10.0) && sum < total_stellar_mass; i++) {
+	for (int istar = 0, i = 0; i < (int)(10.0 * total_stellar_mass) && sum < total_stellar_mass; i++) {
 		double st_mfin = kroupa.randomMass();
-		//double st_mfin = random_kroupa(rng);
-		//double st_mfin = randomp(st_exp, min_mass_salp, st_max, engine);
 		sum += st_mfin;
 		if (st_mfin >= min_outmass) {
 			istar++;
@@ -442,13 +493,18 @@ void Galaxy::populate() {
 		if (sum > total_stellar_mass)
 			break;
 
-		progBar.update(sum);
+		if (progBar.timeToUpdate()) {
+			progBar.update(sum);
+			Logger::Instance().print<SeverityType::INFO>(progBar.getFullString(), "\r");
+		}
 	}
-	progBar.end(true);
 
-	std::cout << "|_ Total stellar mass out = " << sum << std::endl;
-	std::cout << "|_ No. of stars = " << stars.id.size() << std::endl;
-	std::cout << "Finished generating stars. " << timer.formatTime(timer.getTicks()) << std::endl;
+	progBar.end();
+	Logger::Instance().print<SeverityType::NOTICE>(progBar.getFinalString(), '\n');
+
+	Logger::Instance().print<SeverityType::NOTICE>("Total stellar mass out = ", sum, '\n');
+	Logger::Instance().print<SeverityType::NOTICE>("No. of stars = ", stars.id.size(), '\n');
+	Logger::Instance().print<SeverityType::NOTICE>("Finished generating stars.\n");
 }
 
 static std::array<int, 3> coordsFromIndex(int index, int nx, int ny) {
@@ -465,7 +521,7 @@ static std::array<int, 3> coordsFromIndex(int index, int nx, int ny) {
 }
 
 void Galaxy::putStars() {
-	std::cout << "Putting stars into galaxy..." << std::endl;
+	Logger::Instance().print<SeverityType::NOTICE>("Putting stars into galaxy.\n");
 
 	Timer timer;
 	timer.start();
@@ -484,13 +540,21 @@ void Galaxy::putStars() {
 	double SF_POWER = 1.4;
 	std::vector<double> probs = std::vector<double>(N, 0.0);
 
-	ProgressBar progBar(N, 5, "|_ Calculating P(formation|position)", false);
+	Logger::Instance().print<SeverityType::NOTICE>("Calculating P(formation|position)...\n");
+	ProgressBar progBar(N, 1000);
+
 	for (int i = 0; i < N; i++) {
 		std::array<int, 3> pos = coordsFromIndex(i, nocells[0], nocells[1]);
 		probs[i] = std::pow(dencube[pos[0]][pos[1]][pos[2]] / maxDensity, SF_POWER);
-		progBar.update(i+1);
+
+		if (progBar.timeToUpdate()) {
+			progBar.update(i + 1);
+			Logger::Instance().print<SeverityType::INFO>(progBar.getFullString(), "\r");
+		}
 	}
-	progBar.end(true);
+
+	progBar.end();
+	Logger::Instance().print<SeverityType::NOTICE>(progBar.getFinalString(), '\n');
 
 	std::vector<std::size_t> prob_indexes(N);
 	std::iota(prob_indexes.begin(), prob_indexes.end(), 0);
@@ -506,7 +570,8 @@ void Galaxy::putStars() {
 			  [&probs](std::size_t i1, std::size_t i2) {return probs[i1] < probs[i2];});
 
 	// Compute Extinction Array
-	progBar.reset(stars.size, 5, "|_ Calculating star positions & extinctions");
+	Logger::Instance().print<SeverityType::NOTICE>("Calculating star positions & extinctions...\n");
+	progBar = ProgressBar(stars.size, 1000);
 
 	for (int istar = 0; istar < stars.size; istar++) {
 		// Calculate Star Position
@@ -544,9 +609,9 @@ void Galaxy::putStars() {
 
 		std::vector<double> xsamp_px(nsamp, 0.0), ysamp_px(nsamp, 0.0), zsamp_px(nsamp, 0.0);
 		for (int isamp = 0; isamp < nsamp; isamp++) {
-			xsamp_px[isamp] = kpc2pix(isamp*(stars.xyz[0][istar]-params.solar_position[0])/nsamp + params.solar_position[0], 0);
-			ysamp_px[isamp] = kpc2pix(isamp*(stars.xyz[1][istar]-params.solar_position[1])/nsamp + params.solar_position[1], 1);
-			zsamp_px[isamp] = kpc2pix(isamp*(stars.xyz[2][istar]-params.solar_position[2])/nsamp + params.solar_position[2], 2);
+			xsamp_px[isamp] = kpc2pix(isamp * (stars.xyz[0][istar] - params.solar_position[0]) / nsamp + params.solar_position[0], 0);
+			ysamp_px[isamp] = kpc2pix(isamp * (stars.xyz[1][istar] - params.solar_position[1]) / nsamp + params.solar_position[1], 1);
+			zsamp_px[isamp] = kpc2pix(isamp * (stars.xyz[2][istar] - params.solar_position[2]) / nsamp + params.solar_position[2], 2);
 		}
 
 		std::vector<double> interpolatedDensities = cubeInterpol(dencube, xsamp_px, ysamp_px, zsamp_px);
@@ -556,8 +621,7 @@ void Galaxy::putStars() {
 
 		stars.col_d[istar] = int_tabulated(distances, interpolatedDensities); //cm-3 kpc
 		if (stars.col_d[istar] < 0) {
-			printScatter(distances, interpolatedDensities, "test.txt");
-			exit(EXIT_FAILURE);
+			throw std::runtime_error("Galaxy::putStars: negative column density encountered.\n"); 
 		}
 
 		// V-band Extinction
@@ -590,18 +654,20 @@ void Galaxy::putStars() {
 		stars.d_gc[istar] = std::sqrt(pow(stars.xyz[0][istar], 2.0) + pow(stars.xyz[1][istar], 2.0) + pow(stars.xyz[2][istar], 2.0));
 
 		// Progress
-		progBar.update(istar);
+		if (progBar.timeToUpdate()) {
+			progBar.update(istar);
+			Logger::Instance().print<SeverityType::INFO>(progBar.getFullString(), "\r");
+		}
 	}
-	progBar.end(true);
 
-	std::cout << "Finished placing stars. " << timer.formatTime(timer.getTicks()) << std::endl;
+	progBar.end();
+	Logger::Instance().print<SeverityType::NOTICE>(progBar.getFinalString(), '\n');
+
+	Logger::Instance().print<SeverityType::NOTICE>("Finished placing stars.\n");
 }
 
 void Galaxy::currStarMass() {
-	std::cout << "Calculating current star masses..." << std::endl;
-
-	Timer timer;
-	timer.start();
+	Logger::Instance().print<SeverityType::NOTICE>("Calculating current star masses.\n");
 
 	std::vector<double> isomass, isotemp, isologl, isorad, isobc, isomv, isologq, isotkh;
 	std::vector<double> mdot_ms_arr, mass_ms_arr;
@@ -618,7 +684,9 @@ void Galaxy::currStarMass() {
 	double MASS_MS = 20; //Msun
 	double SIG_cl = 1.0; //g cm^-3
 
-	ProgressBar progBar(nstars, 5, "|_ Computing MS masses", false);
+	Logger::Instance().print<SeverityType::NOTICE>("Computing MS masses...\n");
+	ProgressBar progBar(nstars, 1000);
+
 	for (int i = 0; i < nstars; i++) {
 		//mt_mcur[i] = 0.18*pow(stars.mfin[i]/30.0, 0.5)*pow(SIG_cl, 1.5)*pow(stars.age[i]*1.0e3/1.0e4, 2.0);
 		mt_mcur[i] = 5.4e-8 * std::pow(stars.mfin[i] / 30.0, 1.5) * std::pow(SIG_cl, 1.5) * pow(stars.age[i] * 1.0e3, 2.0) / stars.mfin[i];
@@ -645,9 +713,14 @@ void Galaxy::currStarMass() {
 
 		stars.t_ms[i] = std::max(0.0, stars.age[i] - std::min(mt_tform[i], t20[i]));
 
-		progBar.update(i+1);
+		if (progBar.timeToUpdate()) {
+			progBar.update(i + 1);
+			Logger::Instance().print<SeverityType::INFO>(progBar.getFullString(), "\r");
+		}
 	}
-	progBar.end(true);
+
+	progBar.end();
+	Logger::Instance().print<SeverityType::NOTICE>(progBar.getFinalString(), '\n');
 
 	HosTracks htracks("config/required/hosokawa_tracks_interp/int_md.dat"); //hostracks.cpp
 	int ntracks = htracks.tracks.size();
@@ -657,7 +730,9 @@ void Galaxy::currStarMass() {
 	double hos_mdot_res = hos_mdot_arr[1] - hos_mdot_arr[0];
 
 	// Luminosities of accreting objects.
-	progBar.reset(nstars, 5, "|_ Computing luminosities");
+	Logger::Instance().print<SeverityType::NOTICE>("Computing luminosities...\n");
+	progBar = ProgressBar(nstars, 1000);
+
 	for (int i = 0; i < nstars; i++) {
 		double acc_use;
 		if (mt_mcur[i] < stars.mfin[i]) {
@@ -684,27 +759,29 @@ void Galaxy::currStarMass() {
 		}
 
 		// Luminosities of accretors above MASS_MS
-		double mt_lacc_const = 0.5*(6.4e22*6.67e-11)*(2.0e30/4.0e26)/7.0e8;
+		double mt_lacc_const = 0.5 * (6.4e22 * 6.67e-11) * (2.0e30 / 4.0e26) / 7.0e8;
 		double mt_temp = std::pow(10.0, interpol(isotemp, isomass, stars.mcur[i]));
 		double mt_rad = std::sqrt(4.0e26 / (4.0 * CST::PI * 5.67e-8)) * std::sqrt(stars.lbol[i]/std::pow(mt_temp, 4.0)) / 7.0e8;
 		if (mt_mcur[i] < stars.mfin[i] && mt_mcur[i] > MASS_MS) {
 			mt_rad = interpol(isorad, isomass, stars.mcur[i]);
-			mt_lacc[i] = mt_lacc_const*std::pow(10.0, -1.0*mt_acc[i])*stars.mcur[i]/mt_rad;
+			mt_lacc[i] = mt_lacc_const*std::pow(10.0, -1.0 * mt_acc[i]) * stars.mcur[i] / mt_rad;
 			stars.lbol[i] += mt_lacc[i];
 		}
 
-		progBar.update(i+1);
+		if (progBar.timeToUpdate()) {
+			progBar.update(i + 1);
+			Logger::Instance().print<SeverityType::INFO>(progBar.getFullString(), "\r");
+		}
 	}
-	progBar.end(true);
 
-	std::cout << "Finished calculating current masses. " << timer.formatTime(timer.getTicks()) << std::endl;
+	progBar.end();
+	Logger::Instance().print<SeverityType::NOTICE>(progBar.getFinalString(), '\n');
+
+	Logger::Instance().print<SeverityType::NOTICE>("Finished calculating current masses.\n");
 }
 
 void Galaxy::calcFluxes() {
-	std::cout << "Calculating fluxes..." << std::endl;
-
-	Timer timer;
-	timer.start();
+	Logger::Instance().print<SeverityType::NOTICE>("Calculating fluxes.\n");
 
 	double LYMANSCALE = 1.0;
 	double F_21_SIG = 0.26;
@@ -723,9 +800,9 @@ void Galaxy::calcFluxes() {
 
 	//Find 21um flux level.
 	for (int i = 0; i < nstars; i++) {
-		double j21_sc_exp = Random::randomNormal(0.0, 1.0)*F_21_SIG + F_21_SC;
+		double j21_sc_exp = Random::randomNormal(0.0, 1.0) * F_21_SIG + F_21_SC;
 		double j21_scale = std::pow(10.0, j21_sc_exp);
-		stars.j21[i] = stars.lbol[i]*SOL_LUM*std::pow(10.0, stars.ext_21[i]/-2.5)/(4.0 * CST::PI * std::pow(stars.dsun[i] * KPC2M, 2.0) * WID_21 * 1e-26 * j21_scale);
+		stars.j21[i] = stars.lbol[i] * SOL_LUM * std::pow(10.0, stars.ext_21[i] / -2.5) / (4.0 * CST::PI * std::pow(stars.dsun[i] * KPC2M, 2.0) * WID_21 * 1e-26 * j21_scale);
 	}
 
 	//Recompute Lyman flux.
@@ -738,7 +815,7 @@ void Galaxy::calcFluxes() {
 	for (int i = 0; i < nstars; i++)
 		stars.logq[i] = interpol(ref_Q0, ref_mstar, stars.mcur[i]);
 
-	std::cout << "Finished calculating fluxes. " << timer.formatTime(timer.getTicks()) << std::endl;
+	Logger::Instance().print<SeverityType::NOTICE>("Finished calculating fluxes.\n");
 }
 
 

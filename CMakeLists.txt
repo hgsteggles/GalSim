@@ -34,6 +34,6 @@ copy_galsim_config(config/required/msx_data.csv)
 copy_galsim_config(config/required/clust_ak.txt)
 copy_galsim_config(config/required/cepheids.csv)
 copy_galsim_config(config/required/cepheids_pos.csv)
-copy_galsim_config(config/usr/parameters.lua)
+copy_galsim_config(config/usr/galsim-config.lua)
 
 add_subdirectory(src)

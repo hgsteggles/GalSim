@@ -8,18 +8,71 @@
 #include "selene/include/selene.h"
 
 #include "Galaxy.hpp"
+#include "Logger.hpp"
 #include "ParseLua.hpp"
 #include "FileManagement.hpp"
 
+void showUsage();
 void parseParameters(const std::string& filename, GalaxyParameters& p);
 
-int main() {
+int main(int argc, char** argv) {
+	bool silent = false;
+	std::string paramFile = "config/usr/galsim-config.lua";
+
+	// Parse parameters
+	if (argc > 3) {
+		showUsage();
+		return 0;
+	}
+	if (argc > 1) {
+		for (int iarg = 1; iarg < argc; ++iarg) {
+			std::string arg = argv[iarg];
+			std::string prefix1("--paramfile=");
+			std::string prefix2("-s");
+
+			if (!arg.compare(0, prefix1.size(), prefix1))
+				paramFile = arg.substr(prefix1.size()).c_str();
+			else if (!arg.compare(0, prefix2.size(), prefix2))
+				silent = true;
+			else {
+				showUsage();
+				return 0;
+			}
+		}
+	}
+
+	std::unique_ptr<LogPolicyInterface> consoleLogPolicy 
+		= std::unique_ptr<ConsoleLogPolicy>(new ConsoleLogPolicy());
+	consoleLogPolicy->setLogLevel(silent ? SeverityType::ERROR : SeverityType::DEBUG);
+	Logger::Instance().registerLogPolicy("console", std::move(consoleLogPolicy));
+
 	GalaxyParameters gal_params;
-	parseParameters("config/usr/parameters.lua", gal_params);
 
-	FileManagement::makeDirectoryPath(gal_params.outputDirectory);
+	try {
+		parseParameters(paramFile, gal_params);
 
-	Galaxy galaxy(gal_params);
+		FileManagement::makeDirectoryPath(gal_params.outputDirectory);
+		FileManagement::makeDirectoryPath(gal_params.outputDirectory + "/log");
+
+		std::unique_ptr<LogPolicyInterface> fileLogPolicy 
+			= std::unique_ptr<FileLogPolicy>(
+				  new FileLogPolicy(gal_params.outputDirectory + "/log/galsim.log")
+			  );
+		fileLogPolicy->setLogLevel(SeverityType::NOTICE);
+		Logger::Instance().registerLogPolicy("file", std::move(fileLogPolicy));
+	}
+	catch (std::exception& e) {
+		Logger::Instance().print<SeverityType::FATAL_ERROR>(e.what());
+		return 0;
+	}
+
+	try {
+		Galaxy galaxy(gal_params);
+	}
+	catch (std::exception& e) {
+		Logger::Instance().print<SeverityType::FATAL_ERROR>(e.what());
+		std::cout << "See " << gal_params.outputDirectory + "/log/galsim.log for more details." << std::endl;
+	}
 
 	return 0;
 }
@@ -76,4 +129,8 @@ void parseParameters(const std::string& filename, GalaxyParameters& p) {
 			parseLuaVariable(luaState["Parameters"][("logarm_rmax_"+num[i].str()).c_str()], p.sp_rmax[i]);
 		}
 	}
+}
+
+void showUsage() {
+	std::cout << "galsim [--paramfile=<filename>] [-s]" << std::endl;
 }

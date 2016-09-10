@@ -172,44 +172,6 @@ void StarPop::printFinal(const std::string& filename) {
 	ofile.close();
 }
 
-void StarPop::printSelected(const std::vector<int>& elements, const std::string& filename) {
-	// creating filename
-	std::ofstream ofile(filename);
-	if (!ofile)
-		std::cerr << "ERROR: unable to open " << filename << std::endl;
-
-	// writing data to file
-	ofile << "M_fin[msun]\tage[kyr]\td_sun[kpc]\td_gc[kpc]\tcol_d[cm-3.kpc]\text_v\text_k\text_21\tlbol[lsun]\tj21[Jy]\tx[kpc]\ty[kpc]\tz[kpc]\tg_long[deg]\tg_lat[deg]\n";
-
-	ofile << std::setprecision(6) << std::scientific;
-
-	for (unsigned int i = 0; i < elements.size(); i++) {
-		ofile << mcur[elements[i]] << '\t';//1
-		ofile << mfin[elements[i]] << '\t';//2
-		ofile << age[elements[i]] << '\t';//3
-		ofile << dsun[elements[i]] << '\t';//4
-		ofile << d_gc[elements[i]] << '\t';//5
-		ofile << col_d[elements[i]] << '\t';//6
-		ofile << ext_v[elements[i]] << '\t';//7
-		ofile << ext_k[elements[i]] << '\t';//8
-		ofile << ext_21[elements[i]] << '\t';//9
-		ofile << rad_sb[elements[i]] << '\t';//10
-		ofile << rad_fl[elements[i]] << '\t';//11
-		ofile << r0_ss[elements[i]] << '\t';//12
-		ofile << r_ss[elements[i]] << '\t';//13
-		ofile << ang_ss[elements[i]] << '\t';//14
-		ofile << lbol[elements[i]] << '\t';//15
-		ofile << j21[elements[i]] << '\t';//16
-		ofile << ne[elements[i]] << '\t';//17
-		ofile << xyz[0][elements[i]] << '\t';//18
-		ofile << xyz[1][elements[i]] << '\t';//19
-		ofile << xyz[2][elements[i]] << '\t';//20
-		ofile << gcoord[0][elements[i]] << '\t';//21
-		ofile << gcoord[1][elements[i]] << std::endl;//22
-	}
-	ofile.close();
-}
-
 Star::Star() : id(0), mcur(0), mfin(0), age(0), dsun(0), d_gc(0), col_d(0), ext_v(0), ext_k(0), ext_21(0), sb_rad(0), fl_rad(0), r_ss(0), ang_ss(0), v_lsr(0), lbol(0), t_ms(0), ps_sw(0), logq(0), j21(0) {
 	xyz[0] = 0;
 	xyz[1] = 0;

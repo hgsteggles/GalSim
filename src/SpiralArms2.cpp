@@ -6,6 +6,7 @@
 #include "SpiralArms2.hpp"
 #include "Timer.hpp"
 #include "ProgressBar.hpp"
+#include "Logger.hpp"
 
 static double h(double x) {
 	return pow(1.0 / std::cosh(x), 2.0);
@@ -46,11 +47,7 @@ SpiralArms::SpiralArms(const GalaxyParameters& gparams) : params(gparams) {
 }
 
 void SpiralArms::calcDensity() {
-	std::cout << "|_ Setting up SpiralArms..." << std::endl;
-
-	//double wa_wj[5] = {0.6*1.0, 0.6*1.5, 0.6*1.0, 0.6*0.8, 0.6*1.0}; //relative thicknesses
-	//double na_fj[5] = {0.03*0.5, 0.03*1.2, 0.03*1.3, 0.03*1.0, 0.03*0.25}; //relative densities
-	//double ha_hj[5] = {0.25*1.0, 0.25*0.8, 0.25*1.3, 0.25*1.5, 0.25*1.0}; //relative scale-heights
+	Logger::Instance().print<SeverityType::NOTICE>("Setting up SpiralArms.\n");
 
 	int nocells[3];
 	nocells[0] = density.size();
@@ -60,19 +57,21 @@ void SpiralArms::calcDensity() {
 	std::vector<double> yaxis(nocells[1]);
 	std::vector<double> zaxis(nocells[2]);
 	for (unsigned int i = 0; i < xaxis.size(); i++)
-		xaxis[i] = -params.radius + (i*params.resolution);
+		xaxis[i] = -params.radius + (i * params.resolution);
 	for (unsigned int i = 0; i < yaxis.size(); i++)
-		yaxis[i] = -params.radius + (i*params.resolution);
+		yaxis[i] = -params.radius + (i * params.resolution);
 	for (unsigned int i = 0; i < zaxis.size(); i++)
-		zaxis[i] = -params.height + (i*params.resolution);
+		zaxis[i] = -params.height + (i * params.resolution);
 
-	double rmax = sqrt(2.0)*params.radius;
+	double rmax = std::sqrt(2.0) * params.radius;
 	double sp_rmax[4] = {rmax, rmax, rmax, rmax};
 	int nfit = 1000;
 	
 	Timer timer;
 	timer.start();
-	ProgressBar progBar(100, 5, "    |_ Computing SJ array", false);
+
+	Logger::Instance().print<SeverityType::NOTICE>("Computing SJ array...\n");
+	ProgressBar progBar(100, 1000);
 
 	std::vector<std::vector<std::vector<double> > > sj(nocells[0], std::vector<std::vector<double> >(nocells[1], std::vector<double>(4, 0.0)));
 	for (int m = 0; m < 4; ++m) {
@@ -146,12 +145,19 @@ void SpiralArms::calcDensity() {
 						throw std::runtime_error("SpiralArms::calcDensity: NaN Sj, check arm parameters (rmin > 0).");
 				}
 			}
-			progBar.update(ix*25.0/nocells[0] + 25.0*m);
+
+			if (progBar.timeToUpdate()) {
+				progBar.update(ix * 25.0 / nocells[0] + 25.0 * m);
+				Logger::Instance().print<SeverityType::INFO>(progBar.getFullString(), "\r");
+			}
 		}
 	}
-	progBar.end(true);
+	progBar.end();
+	Logger::Instance().print<SeverityType::NOTICE>(progBar.getFinalString(), '\n');
 	
-	progBar.reset(nocells[0], 5, "    |_ Computing SpiralArm densities");
+	Logger::Instance().print<SeverityType::NOTICE>("Computing SpiralArm densities...\n");
+	progBar = ProgressBar(nocells[0], 1000);
+
 	for (int i = 0; i < nocells[0]; i++) {
 		for (int j = 0; j < nocells[1]; j++) {
 			for (int k = 0; k < nocells[2]; k++) {
@@ -161,11 +167,18 @@ void SpiralArms::calcDensity() {
 				density[i][j][k] = Ga(x, y, z, params.Aa, params.A_inner, params.na_fj, params.wa_wj, params.ha_hj, sj[i][j]);
 
 				if (density[i][j][k] != density[i][j][k])
-					throw std::runtime_error("SpiralArms::calcDensity: NaN density.");
+					throw std::runtime_error("SpiralArms::calcDensity: NaN density.\n");
 			}
 		}
-		progBar.update(i+1);
+
+		if (progBar.timeToUpdate()) {
+			progBar.update(i + 1);
+			Logger::Instance().print<SeverityType::INFO>(progBar.getFullString(), "\r");
+		}
 	}
-	progBar.end(true);
-	std::cout << "|_ Finished setting up SpiralArms." << std::endl;
+
+	progBar.end();
+	Logger::Instance().print<SeverityType::NOTICE>(progBar.getFinalString(), '\n');
+
+	Logger::Instance().print<SeverityType::NOTICE>("Finished setting up SpiralArms.\n");
 }

@@ -28,11 +28,11 @@ public:
 	void readDensity(const std::string& filename);
 	void calcDensity(const std::string& filename);
 
-	void print(const std::string& filename);
+	void print_xy(const std::string& filename);
 	void print_xz(const std::string& filename);
 	void print3D(const std::string& filename);
 
-	void calcExtinction(const std::string& filename);
+	void calcExtinction();
 	void populate();
 	void putStars();
 	void putStars2();

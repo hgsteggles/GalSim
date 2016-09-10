@@ -1,6 +1,7 @@
 #include "Disks2.hpp"
 
 #include "Constants.hpp"
+#include "Logger.hpp"
 
 #include <cmath>
 
@@ -24,7 +25,7 @@ static double G2(double r, double z, double n2, double A2, double H2) {
 }
 
 ThinDisk::ThinDisk(const GalaxyParameters& gparams) : params(gparams) {
-	std::cout << "|_ Setting up ThinDisk..." << std::endl;
+	Logger::Instance().print<SeverityType::NOTICE>("Setting up ThinDisk.\n");
 	double nocells[3];
 	nocells[0] = (int)(2.0*params.radius/params.resolution + 0.5);
 	nocells[1] = (int)(2.0*params.radius/params.resolution + 0.5);
@@ -43,15 +44,15 @@ ThinDisk::ThinDisk(const GalaxyParameters& gparams) : params(gparams) {
 				density[i][j].push_back(G2(r, z, params.n2, params.A2, params.H2));
 
 				if (density[i][j][k] != density[i][j][k])
-					throw std::runtime_error("ThinDisk::ThinDisk: NaN density.");
+					throw std::runtime_error("ThinDisk::ThinDisk: NaN density.\n");
 			}
 		}
 	}
-	std::cout << "|_ Finished setting up ThinDisk." << std::endl;
+	Logger::Instance().print<SeverityType::NOTICE>("Finished setting up ThinDisk.\n");
 }
 
 ThickDisk::ThickDisk(const GalaxyParameters& gparams) : params(gparams) {
-	std::cout << "|_ Setting up ThickDisk..." << std::endl;
+	Logger::Instance().print<SeverityType::NOTICE>("Setting up ThickDisk.\n");
 	//double gal_rmax = 18.00;
 	//double gal_hmax = 2.00;
 	//double gal_res = 0.10;
@@ -79,9 +80,9 @@ ThickDisk::ThickDisk(const GalaxyParameters& gparams) : params(gparams) {
 				density[i][j].push_back(G1(r, z, params.n1, params.A1, params.H1));
 
 				if (density[i][j][k] != density[i][j][k])
-					throw std::runtime_error("ThickDisk::ThickDisk: NaN density.");
+					throw std::runtime_error("ThickDisk::ThickDisk: NaN density.\n");
 			}
 		}
 	}
-	std::cout << "|_ Finished setting up ThickDisk." << std::endl;
+	Logger::Instance().print<SeverityType::NOTICE>("Finished setting up ThickDisk.\n");
 }

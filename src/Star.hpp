@@ -18,7 +18,6 @@ public:
 	void read(const std::string& filename);
 	void print(const std::string& filename);
 	void printFinal(const std::string& filename);
-	void printSelected(const std::vector<int>& elements, const std::string& filename);
 	void addStar(int i, double m, double a);
 	std::vector<int> id, msx, kh;
 	std::vector<double> age, dsun, d_gc, col_d, ext_v, ext_k, ext_21;
