@@ -149,11 +149,11 @@ The parameters not included in this table should not be modified unless you know
 #####Basic
 | Parameter                     | Notes                                     |
 | :---------------------------- | :---------------------------------------- |
-| ```densityfile```             | 3D density data that is output by this program (so the program doesn't have to recalculate it). |
-| ```starpopfile```             | Stellar population file. For recalculating stellar masses predicted by another accretion model. |
-| ```output_directory```        | The output directory. |
-| ```sfr```                     | Star formation rate in units of M_solar per year. |
-| ```total_time```              | Maximum age of a star in the distribution. |
+| `densityfile`             | 3D density data that is output by this program (so the program doesn't have to recalculate it). |
+| `starpopfile`             | Stellar population file. For recalculating stellar masses predicted by another accretion model. |
+| `output_directory`        | The output directory. |
+| `sfr`                     | Star formation rate in units of M_solar per year. |
+| `total_time`              | Maximum age of a star in the distribution. |
 
 ####Developer info
 Harrison Steggles, University of Leeds (PhD student).
