@@ -124,7 +124,7 @@ GalSim outputs data files to the directory assigned to `output_directory`.
 
 `starpop.txt` is the star data before we have utilised an accretion model. From left to right the columns are: final stellar mass; age; distance from the sun; distance from the Galactic centre; column density; V-band, K-band and 21um extinctions; Galactic x, y, and z coordinates; and Galactic longitude and latitude.
 
-`starpopfinal.txt` is the star data after we have utilised an accretion model. From left to right the columns are: current and final stellar masses; time on main-sequence; age; distance from the sun; distance from the Galactic centre; column density; V-band, K-band and 21um extinctions; bolometric luminosity; 21um flux level; Galactic x, y, and z coordinates; and Galactic longitude and latitude.
+`starpopfinal.txt` is the star data after we have utilised an accretion model. From left to right the columns are: current and final stellar masses; time on main-sequence; age; distance from the sun; distance from the Galactic centre; column density; V-band, K-band and 21um extinctions; bolometric luminosity; 21um flux level; Galactic x, y, and z coordinates; and Galactic longitude and latitude.  
 
 ####Compiling
 
@@ -158,10 +158,10 @@ The parameters not included in this table should not be modified unless you know
 Harrison Steggles, University of Leeds (PhD student).
 
 ####References
-<a name="C1"></a>Cordes, J. M. and Lazio, T. J. W. (2002). NE2001.I. A New Model for the Galactic Distribution of Free Electrons and its Fluctuations. ArXiv Astrophysics e-prints.([link](http://arxiv.org/pdf/astro-ph/0207156v3.pdf))
-<a name="K98"></a>Kennicutt, Jr., R. C. (1998). The Global Schmidt Law in Star-forming Galaxies. ApJ, 498:541–552.([link](http://iopscience.iop.org/article/10.1086/305588/pdf))
-<a name="K1"></a>Kroupa, P. (2001). On the variation of the initial mass function. MNRAS, 322:231–246.([link](http://articles.adsabs.harvard.edu/cgi-bin/nph-iarticle_query?2001MNRAS.322..231K&amp;data_type=PDF_HIGH&amp;whole_paper=YES&amp;type=PRINTER&amp;filetype=.pdf))
-<a name="M3"></a>McKee, C. F. and Tan, J. C. (2003). The Formation of Massive Stars from Turbulent Cores. ApJ, 585:850–871.([link](http://iopscience.iop.org/article/10.1086/346149/pdf))
+<a name="C1"></a>Cordes, J. M. and Lazio, T. J. W. (2002). NE2001.I. A New Model for the Galactic Distribution of Free Electrons and its Fluctuations. ArXiv Astrophysics e-prints.([link](http://arxiv.org/pdf/astro-ph/0207156v3.pdf))  
+<a name="K98"></a>Kennicutt, Jr., R. C. (1998). The Global Schmidt Law in Star-forming Galaxies. ApJ, 498:541–552.([link](http://iopscience.iop.org/article/10.1086/305588/pdf))  
+<a name="K1"></a>Kroupa, P. (2001). On the variation of the initial mass function. MNRAS, 322:231–246.([link](http://articles.adsabs.harvard.edu/cgi-bin/nph-iarticle_query?2001MNRAS.322..231K&amp;data_type=PDF_HIGH&amp;whole_paper=YES&amp;type=PRINTER&amp;filetype=.pdf))  
+<a name="M3"></a>McKee, C. F. and Tan, J. C. (2003). The Formation of Massive Stars from Turbulent Cores. ApJ, 585:850–871.([link](http://iopscience.iop.org/article/10.1086/346149/pdf))  
 
 
 ####Requirements
