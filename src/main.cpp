@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
 	if (argc > 1) {
 		for (int iarg = 1; iarg < argc; ++iarg) {
 			std::string arg = argv[iarg];
-			std::string prefix1("--paramfile=");
+			std::string prefix1("--config=");
 			std::string prefix2("-s");
 
 			if (!arg.compare(0, prefix1.size(), prefix1))
@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
 	GalaxyParameters gal_params;
 
 	try {
-		parseParameters(paramFile, gal_params);
+		gal_params.outputDirectory = parseOutputDirectory(paramFile);
 
 		FileManagement::makeDirectoryPath(gal_params.outputDirectory);
 		FileManagement::makeDirectoryPath(gal_params.outputDirectory + "/log");
@@ -67,14 +67,32 @@ int main(int argc, char** argv) {
 	}
 
 	try {
+		parseParameters(paramFile, gal_params);
 		Galaxy galaxy(gal_params);
 	}
 	catch (std::exception& e) {
 		Logger::Instance().print<SeverityType::FATAL_ERROR>(e.what());
-		std::cout << "See " << gal_params.outputDirectory + "/log/galsim.log for more details." << std::endl;
+		std::cout << "See " << gal_params.outputDirectory << "/log/galsim.log for more details." << std::endl;
+		return 0;
 	}
 
 	return 0;
+}
+
+std::string parseOutputDirectory(const std::string& paramfilename) {
+	std::string fullfilename = paramfilename;
+	std::string outputDir = "";
+	// Create new Lua state and load the lua libraries
+	sel::State luaState{true};
+
+	if (!luaState.Load(fullfilename)) {
+		throw std::runtime_error("ParseParameters: could not open lua file: " + fullfilename);
+	}
+	else {
+		parseLuaVariable(luaState["Parameters"]["output_directory"], outputDir);
+	}
+
+	return outputDir;
 }
 
 void parseParameters(const std::string& filename, GalaxyParameters& p) {
@@ -132,5 +150,5 @@ void parseParameters(const std::string& filename, GalaxyParameters& p) {
 }
 
 void showUsage() {
-	std::cout << "galsim [--paramfile=<filename>] [-s]" << std::endl;
+	std::cout << "galsim [-s] [--config=<filename>]" << std::endl;
 }

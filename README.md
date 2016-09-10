@@ -32,8 +32,9 @@ To run, execute `galsim`:
 By default GalSim reads in the configuration file, `config/usr/galsim-config.lua`.
 You can specify your own configuration file:
 ```bash
-./galsim --paramfile=/path/to/galsim-config.lua
+./galsim --config=/path/to/galsim-config.lua
 ```
+The `-s` flag can also be passed to run the program silently (only error messages will appear on the console).
 
 #####Setup
 
