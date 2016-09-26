@@ -28,6 +28,7 @@ public:
 	void readDensity(const std::string& filename);
 	void calcDensity(const std::string& filename);
 
+	void print_xy_slice(const std::string& filename);
 	void print_xy(const std::string& filename);
 	void print_xz(const std::string& filename);
 	void print3D(const std::string& filename);

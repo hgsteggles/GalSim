@@ -43,6 +43,7 @@ Galaxy::Galaxy(const GalaxyParameters& gal_params) : params(gal_params), thinDis
 		readDensity(params.densityfile);
 	else
 		calcDensity(params.outputDirectory + "density3D.txt");
+	print_xy_slice(params.outputDirectory + "density-xy-slice.txt");
 	print_xy(params.outputDirectory + "density-xy.txt");
 	print_xz(params.outputDirectory + "density-xz.txt");
 
@@ -165,6 +166,55 @@ void Galaxy::calcDensity(const std::string& filename) {
 	Logger::Instance().print<SeverityType::NOTICE>("Finished calculating density.\n");
 }
 
+void Galaxy::print_xy_slice(const std::string& filename) {
+	// creating filename
+	std::ofstream ofile(filename);
+	if (!ofile)
+		throw std::runtime_error("Galaxy::print_xy_slice: unable to open \'" + filename + "\' for outputting\n.");
+
+	// writing data to file
+	Logger::Instance().print<SeverityType::NOTICE>("Printing 2D (xy) density slice...\n");
+	ProgressBar progBar(density.size() * density[0].size(), 1000);
+
+	ofile << gal_x.size() << '\t' << gal_y.size() << '\n';
+	ofile << "gal_x[kpc]\tgal_y[kpc]\tden_thin_disk[cm-3]\tden_thick_disk[cm-3]\tden_spiral_arms[cm-3]\tden_total[cm-3]\n";
+
+	ofile << std::setprecision(6) << std::fixed;
+	for (unsigned int i = 0; i < density.size(); i++) {
+		for (unsigned int j = 0; j < density[i].size(); j++) {
+			ofile << gal_x[i] << '\t';
+			ofile << gal_y[j] << '\t';
+
+			double thinD = 0;
+			double thickD = 0;
+			double spiralA = 0;
+
+			int k = density[i][j].size() / 2;
+
+			if (thinDisk != nullptr)
+				thinD += thinDisk->density[i][j][k];
+			if (thickDisk != nullptr)
+				thickD += thickDisk->density[i][j][k];
+			if (spiralArms != nullptr)
+				spiralA += spiralArms->density[i][j][k];
+
+			ofile << thinD << '\t';
+			ofile << thickD << '\t';
+			ofile << spiralA << '\t';
+			ofile << density[i][j][density[i][j].size()/2] << std::endl;
+
+			if (progBar.timeToUpdate()) {
+				progBar.update((i+1)*(j+1));
+				Logger::Instance().print<SeverityType::INFO>(progBar.getFullString(), "\r");
+			}
+		}
+	}
+	progBar.end();
+	Logger::Instance().print<SeverityType::NOTICE>(progBar.getFinalString(), '\n');
+
+	ofile.close();
+}
+
 void Galaxy::print_xy(const std::string& filename) {
 	// creating filename
 	std::ofstream ofile(filename);
@@ -172,7 +222,7 @@ void Galaxy::print_xy(const std::string& filename) {
 		throw std::runtime_error("Galaxy::print: unable to open \'" + filename + "\' for outputting\n.");
 
 	// writing data to file
-	Logger::Instance().print<SeverityType::NOTICE>("Printing 2D (xy) density slice...\n");
+	Logger::Instance().print<SeverityType::NOTICE>("Printing 2D (xy) integrated density slice...\n");
 	ProgressBar progBar(density.size() * density[0].size(), 1000);
 
 	ofile << gal_x.size() << '\t' << gal_y.size() << '\n';
@@ -221,7 +271,7 @@ void Galaxy::print_xz(const std::string& filename) {
 		throw std::runtime_error("Galaxy::print: unable to open \'" + filename + "\' for outputting.\n");
 
 	// writing data to file
-	Logger::Instance().print<SeverityType::NOTICE>("Printing 2D (xz) density slice...\n");
+	Logger::Instance().print<SeverityType::NOTICE>("Printing 2D (xz) integrated density slice...\n");
 	ProgressBar progBar(density.size() * density[0].size(), 1000);
 
 	ofile << gal_x.size() << '\t' << gal_z.size() << '\n';

@@ -14,6 +14,7 @@
 
 void showUsage();
 void parseParameters(const std::string& filename, GalaxyParameters& p);
+std::string parseOutputDirectory(const std::string& paramfilename);
 
 int main(int argc, char** argv) {
 	bool silent = false;
